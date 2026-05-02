@@ -1,7 +1,7 @@
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 
-const HTML = new URL('./dev-ui.html', import.meta.url);
+const HTML = new URL('./index.html', import.meta.url);
 const FLUE = process.env.FLUE_URL || 'http://localhost:3583';
 const PORT = Number(process.env.PORT || 8080);
 

@@ -23,20 +23,35 @@ Pick the default if you're just kicking the tires; swap pieces as you learn what
 
 ## What's in the box
 
+**Required for the agent to run:**
+
 ```
 .flue/agents/
-  assistant.ts       Agent handler (HTTP entry, model orchestration, sandbox lifecycle)
-.flue/types.d.ts     `*.md` text-import type declaration for Wrangler's text rule
-.agents/skills/      Markdown skill files — Flue's canonical skill location
+  assistant.ts       Agent handler — HTTP entry, model orchestration, sandbox lifecycle
+.flue/types.d.ts     TypeScript ambient declaration so `import x from './foo.md'` type-checks
+.agents/skills/      Markdown skill files at Flue's canonical skill location
   explore/SKILL.md
   summarize/SKILL.md
   plan/SKILL.md
 AGENTS.md            Top-level instructions baked into the system prompt
 wrangler.jsonc       Cloudflare Worker config (Flue auto-injects per-agent DOs)
-dev-ui.html          Minimal browser UI for manual testing (streams events live)
-dev-ui.mjs           Local proxy + static server for the UI
-scripts/sandboxes.mjs   List / delete Daytona sandboxes
 ```
+
+**Optional dev-time tooling — delete freely if you don't want it:**
+
+```
+dev-ui/
+  index.html         Minimal in-browser chat UI for manual testing (streams events live)
+  server.mjs         Tiny Node static-server + `/api/*` proxy to the local Worker
+scripts/
+  sandboxes.mjs      `pnpm sandboxes:list` / `pnpm sandboxes:clean` — Daytona quota housekeeping
+```
+
+The agent doesn't depend on either folder. They exist so you can iterate without leaving the terminal:
+
+- **`dev-ui/`** — a single HTML page + Node proxy. The page sends `/api/...` requests; the proxy forwards them to your local Worker on `:3583` (or whatever `FLUE_URL` points at). The proxy hop is just to dodge CORS — `workerd` doesn't add the headers a cross-origin browser fetch would need. In production you'd hit the Worker URL directly from your real frontend, so this whole folder becomes unnecessary. To remove: `rm -rf dev-ui/` and drop the `ui` script from `package.json`.
+- **`scripts/sandboxes.mjs`** — admin script for Daytona. Lists or deletes sandboxes by `flue-agent-id` label. Daytona's free tier caps disk at 30 GiB, and during dev you'll create lots of throwaway sandboxes; this is the convenient way to drop them. Reads `DAYTONA_API_KEY` from your shell env (source `.dev.vars` or export it). To remove: `rm -rf scripts/` and drop the `sandboxes:*` scripts from `package.json`.
+- **`.flue/types.d.ts`** — one-line ambient module declaration that tells TypeScript `*.md` imports return `string`. Wrangler's `Text` rule (in `wrangler.jsonc`) handles the actual bundling; this file just keeps `tsc` and your editor from complaining. Required if you use TypeScript; safe to delete if you migrate `assistant.ts` to plain JS.
 
 ## Prerequisites
 
@@ -131,7 +146,7 @@ The dev-ui exposes both as buttons: **New conversation** (same workspace) vs **S
 
 Skills are reusable instructions for common tasks, authored as Markdown with frontmatter at the canonical Flue path: `.agents/skills/<name>/SKILL.md`.
 
-On Cloudflare + Daytona we can't mount the local filesystem into the sandbox (the way `sandbox: 'local'` does on Node), so the skill content has to ride along with the Worker. The flow:
+Flue auto-discovers skills from the *sandbox's* filesystem at `<cwd>/.agents/skills/<name>/SKILL.md` ([source](https://github.com/withastro/flue/blob/main/packages/sdk/src/context.ts) — `discoverLocalSkills`). On Node with `sandbox: 'local'`, the local fs is mounted into the sandbox, so authoring `.md` files in the repo Just Works. On Cloudflare + Daytona, the Worker, the repo, and the sandbox are three different machines with no shared filesystem — so the skills have to land on the sandbox fs *somehow* before discovery runs. This template uses the simplest such path:
 
 1. **Authoring** — edit Markdown in `.agents/skills/<name>/SKILL.md`
 2. **Bundling** — Wrangler's `Text` rule (in `wrangler.jsonc`) makes `.md` files importable as strings; the agent imports them at the top of `assistant.ts`
@@ -147,6 +162,35 @@ Three skills ship with the template:
 | `plan` | Break a task into ordered steps with risks and assumptions |
 
 The agent invokes a skill via `session.skill('<name>', { args, result })`. See [Flue's docs](https://github.com/withastro/flue) for the full API.
+
+#### Graduating to a baked Daytona image
+
+The bundling-and-seeding flow above is right for a starter template — one repo, one deploy command, skills version with the agent. But it's not the only way. If your skills outgrow it, swap to a custom Daytona [image / snapshot](https://www.daytona.io/docs):
+
+```ts
+// build the snapshot once, outside the Worker (laptop or CI):
+const image = Image.debianSlim('3.12').addLocalDir('.agents/skills', '/home/daytona/.agents/skills');
+await client.snapshot.create({ name: 'flue-skills:v1', image });
+
+// agent code becomes:
+const sandbox = await client.create({ snapshot: 'flue-skills:v1', labels: { ... } });
+const agent  = await init({ sandbox: daytona(sandbox), model: '...' });
+// no `import x from './foo.md'`, no SKILLS const, no seedSkills, no types.d.ts, no Wrangler Text rule
+```
+
+The agent shrinks. The complexity moves to a snapshot-build pipeline outside the Worker (the SDK's `addLocalDir` / `fromDockerfile` need a real local fs, which the Worker doesn't have).
+
+When it's worth the trade:
+
+- Skills include heavy tools, language runtimes, or system packages — those don't belong as Worker-bundled strings
+- A single skill set is shared across many agents — one snapshot, many Workers
+- Skill changes are rare relative to agent code changes
+
+When it's not:
+
+- Skills change with the agent code in the same PR — keeping them in the Worker bundle means one deploy per change instead of two artifacts in lockstep
+- You want `git clone && pnpm run deploy` to be the whole onboarding story
+- You may switch sandbox providers later — the Worker-bundle pattern ports to any provider with an upload API; the snapshot pattern is Daytona-specific
 
 ## Customizing
 
