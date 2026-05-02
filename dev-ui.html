@@ -1,0 +1,547 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width,initial-scale=1" />
+		<title>Flue Assistant — Dev UI</title>
+		<style>
+			:root {
+				color-scheme: dark;
+				--bg: #0a0a0a;
+				--panel: #111;
+				--border: #222;
+				--muted: #6b7280;
+				--text: #e5e7eb;
+				--accent: #2563eb;
+				--ok: #10b981;
+				--warn: #f59e0b;
+				--err: #ef4444;
+			}
+			* {
+				box-sizing: border-box;
+			}
+			body {
+				margin: 0;
+				background: var(--bg);
+				color: var(--text);
+				font-family:
+					-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+				font-size: 14px;
+				line-height: 1.5;
+			}
+			header {
+				position: sticky;
+				top: 0;
+				z-index: 10;
+				display: flex;
+				align-items: center;
+				gap: 12px;
+				padding: 10px 16px;
+				background: var(--panel);
+				border-bottom: 1px solid var(--border);
+				flex-wrap: wrap;
+			}
+			header strong {
+				font-size: 13px;
+				letter-spacing: 0.02em;
+			}
+			label {
+				display: inline-flex;
+				align-items: center;
+				gap: 6px;
+				font-size: 12px;
+				color: var(--muted);
+			}
+			input,
+			textarea,
+			button {
+				font: inherit;
+				color: inherit;
+			}
+			input,
+			textarea {
+				background: #1a1a1a;
+				border: 1px solid #333;
+				border-radius: 4px;
+				padding: 6px 8px;
+				font-family:
+					ui-monospace, SFMono-Regular, Menlo, monospace;
+			}
+			input:focus,
+			textarea:focus {
+				outline: none;
+				border-color: var(--accent);
+			}
+			button {
+				background: var(--accent);
+				color: white;
+				border: 0;
+				padding: 7px 14px;
+				border-radius: 4px;
+				cursor: pointer;
+			}
+			button.secondary {
+				background: #2a2a2a;
+				color: var(--text);
+			}
+			button:disabled {
+				opacity: 0.5;
+				cursor: not-allowed;
+			}
+			main {
+				max-width: 920px;
+				margin: 0 auto;
+				padding: 16px;
+				padding-bottom: 160px;
+			}
+			.msg {
+				margin-bottom: 18px;
+			}
+			.msg-user {
+				background: #172554;
+				padding: 10px 14px;
+				border-radius: 8px;
+				white-space: pre-wrap;
+				border: 1px solid #1e3a8a;
+			}
+			.msg-meta {
+				font-size: 11px;
+				color: var(--muted);
+				margin: 8px 0 4px;
+				text-transform: uppercase;
+				letter-spacing: 0.06em;
+			}
+			.text-block {
+				white-space: pre-wrap;
+				padding: 4px 0;
+			}
+			.tool-card {
+				border: 1px solid var(--border);
+				border-radius: 6px;
+				margin: 8px 0;
+				background: var(--panel);
+				font-family:
+					ui-monospace, SFMono-Regular, Menlo, monospace;
+				font-size: 12px;
+				overflow: hidden;
+			}
+			.tool-header {
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				padding: 6px 10px;
+				cursor: pointer;
+				user-select: none;
+			}
+			.tool-header:hover {
+				background: #181818;
+			}
+			.tool-status {
+				width: 8px;
+				height: 8px;
+				border-radius: 50%;
+				background: var(--warn);
+				flex-shrink: 0;
+			}
+			.tool-status.done {
+				background: var(--ok);
+			}
+			.tool-status.err {
+				background: var(--err);
+			}
+			.tool-name {
+				color: #93c5fd;
+				font-weight: 500;
+			}
+			.tool-summary {
+				flex: 1;
+				color: var(--muted);
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+			.tool-chev {
+				color: var(--muted);
+			}
+			.tool-body {
+				display: none;
+				padding: 8px 12px;
+				border-top: 1px solid var(--border);
+			}
+			.tool-body.open {
+				display: block;
+			}
+			.tool-section {
+				color: var(--muted);
+				font-size: 11px;
+				text-transform: uppercase;
+				letter-spacing: 0.06em;
+				margin: 6px 0 4px;
+			}
+			.tool-pre {
+				background: #000;
+				padding: 8px;
+				border-radius: 4px;
+				overflow: auto;
+				max-height: 360px;
+				white-space: pre;
+			}
+			.turn-marker {
+				border-top: 1px dashed #1f1f1f;
+				margin: 10px 0;
+			}
+			.result-card {
+				background: #052e16;
+				border: 1px solid #14532d;
+				padding: 10px 14px;
+				border-radius: 6px;
+				margin-top: 12px;
+				font-family:
+					ui-monospace, SFMono-Regular, Menlo, monospace;
+				font-size: 12px;
+				white-space: pre-wrap;
+				overflow-x: auto;
+			}
+			.error-card {
+				background: #2e0505;
+				border: 1px solid #7f1d1d;
+				padding: 10px 14px;
+				border-radius: 6px;
+				margin-top: 12px;
+				color: #fca5a5;
+				font-family:
+					ui-monospace, SFMono-Regular, Menlo, monospace;
+				font-size: 12px;
+				white-space: pre-wrap;
+			}
+			footer {
+				position: fixed;
+				bottom: 0;
+				left: 0;
+				right: 0;
+				background: linear-gradient(to top, var(--bg) 70%, transparent);
+				padding: 14px 16px;
+			}
+			.composer {
+				max-width: 920px;
+				margin: 0 auto;
+				display: flex;
+				gap: 8px;
+				align-items: flex-end;
+			}
+			textarea {
+				flex: 1;
+				min-height: 56px;
+				resize: vertical;
+				font-family: inherit;
+			}
+			.hint {
+				color: var(--muted);
+				font-size: 11px;
+				margin-top: 4px;
+				text-align: right;
+			}
+		</style>
+	</head>
+	<body>
+		<header>
+			<strong>flue · assistant</strong>
+			<label>workspace <input id="sessionId" value="ws-1" size="12" /></label>
+			<button class="secondary" id="newConversation" title="Same workspace + files, new chat">New conversation</button>
+			<button class="secondary" id="startFresh" title="New workspace — wipes files too">Start fresh</button>
+			<input id="agent" type="hidden" value="assistant" />
+		</header>
+		<main id="chat"></main>
+		<footer>
+			<div class="composer">
+				<textarea
+					id="input"
+					placeholder="Ask the agent something… (⌘/Ctrl+Enter to send)"
+				></textarea>
+				<button id="send">Send</button>
+			</div>
+		</footer>
+		<script type="module">
+			const $ = (id) => document.getElementById(id);
+			const chat = $('chat');
+			const input = $('input');
+			const sendBtn = $('send');
+
+			// Conversation thread id — generated client-side, sent in every request.
+			// Same workspace + same threadId = continue chat. Same workspace +
+			// new threadId = fresh chat, files preserved.
+			let threadId = 'c-' + Math.random().toString(36).slice(2, 8);
+
+			$('newConversation').onclick = () => {
+				threadId = 'c-' + Math.random().toString(36).slice(2, 8);
+				chat.innerHTML = '';
+			};
+			$('startFresh').onclick = () => {
+				$('sessionId').value = 'ws-' + Math.random().toString(36).slice(2, 7);
+				threadId = 'c-' + Math.random().toString(36).slice(2, 8);
+				chat.innerHTML = '';
+			};
+			input.addEventListener('keydown', (e) => {
+				if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+					e.preventDefault();
+					send();
+				}
+			});
+			sendBtn.onclick = send;
+
+			async function send() {
+				const text = input.value.trim();
+				if (!text) return;
+				input.value = '';
+				sendBtn.disabled = true;
+
+				const userMsg = el(
+					'div',
+					{ class: 'msg msg-user' },
+					[document.createTextNode(text)]
+				);
+				chat.appendChild(userMsg);
+
+				const agentMsg = el('div', { class: 'msg' }, []);
+				const meta = el(
+					'div',
+					{ class: 'msg-meta' },
+					[document.createTextNode('agent · streaming…')]
+				);
+				agentMsg.appendChild(meta);
+				chat.appendChild(agentMsg);
+
+				const agent = $('agent').value;
+				const sessionId = $('sessionId').value;
+
+				try {
+					const res = await fetch(
+						`/api/agents/${agent}/${sessionId}`,
+						{
+							method: 'POST',
+							headers: {
+								'content-type': 'application/json',
+								accept: 'text/event-stream',
+							},
+							body: JSON.stringify({ message: text, threadId }),
+						}
+					);
+					if (!res.ok || !res.body) {
+						const errText = await res.text();
+						appendError(agentMsg, `HTTP ${res.status}\n${errText}`);
+						return;
+					}
+					await consumeSSE(res.body, (ev) => render(ev, agentMsg));
+					meta.textContent = 'agent · done';
+				} catch (err) {
+					appendError(agentMsg, String(err && err.stack ? err.stack : err));
+					meta.textContent = 'agent · error';
+				} finally {
+					sendBtn.disabled = false;
+					window.scrollTo(0, document.body.scrollHeight);
+				}
+			}
+
+			async function consumeSSE(stream, onEvent) {
+				const reader = stream.pipeThrough(new TextDecoderStream()).getReader();
+				let buf = '';
+				while (true) {
+					const { value, done } = await reader.read();
+					if (done) break;
+					buf += value;
+					let idx;
+					while ((idx = buf.indexOf('\n\n')) >= 0) {
+						const raw = buf.slice(0, idx);
+						buf = buf.slice(idx + 2);
+						const ev = parseEvent(raw);
+						if (ev) onEvent(ev);
+					}
+				}
+			}
+
+			function parseEvent(raw) {
+				let event = '';
+				let data = '';
+				for (const line of raw.split('\n')) {
+					if (!line) continue;
+					if (line.startsWith('event:')) event = line.slice(6).trim();
+					else if (line.startsWith('data:')) data += line.slice(5).trim();
+				}
+				if (!event) return null;
+				let parsed = null;
+				if (data) {
+					try {
+						parsed = JSON.parse(data);
+					} catch {
+						parsed = data;
+					}
+				}
+				return { event, data: parsed };
+			}
+
+			function render({ event, data }, container) {
+				switch (event) {
+					case 'agent_start':
+						break;
+					case 'text_delta': {
+						let block = container.querySelector('.text-block.live');
+						if (!block) {
+							block = el('div', { class: 'text-block live' }, []);
+							container.appendChild(block);
+						}
+						block.appendChild(
+							document.createTextNode(data?.text || '')
+						);
+						break;
+					}
+					case 'tool_start': {
+						sealLiveText(container);
+						const summary = summarizeArgs(data?.args);
+						const card = el('div', { class: 'tool-card', 'data-tool': data.toolCallId }, [
+							el(
+								'div',
+								{ class: 'tool-header' },
+								[
+									el('div', { class: 'tool-status' }, []),
+									el(
+										'span',
+										{ class: 'tool-name' },
+										[document.createTextNode(data.toolName)]
+									),
+									el(
+										'span',
+										{ class: 'tool-summary' },
+										[document.createTextNode(summary)]
+									),
+									el(
+										'span',
+										{ class: 'tool-chev' },
+										[document.createTextNode('▾')]
+									),
+								],
+								(header) => {
+									header.onclick = () => {
+										header.parentElement
+											.querySelector('.tool-body')
+											.classList.toggle('open');
+									};
+								}
+							),
+							el('div', { class: 'tool-body' }, [
+								el('div', { class: 'tool-section' }, [
+									document.createTextNode('args'),
+								]),
+								el(
+									'div',
+									{ class: 'tool-pre' },
+									[
+										document.createTextNode(
+											safeJSON(data.args)
+										),
+									]
+								),
+							]),
+						]);
+						container.appendChild(card);
+						break;
+					}
+					case 'tool_end': {
+						const card = container.querySelector(
+							`.tool-card[data-tool="${data.toolCallId}"]`
+						);
+						if (!card) break;
+						card.querySelector('.tool-status').classList.add(
+							data.isError ? 'err' : 'done'
+						);
+						const body = card.querySelector('.tool-body');
+						body.appendChild(
+							el('div', { class: 'tool-section' }, [
+								document.createTextNode(
+									data.isError ? 'error' : 'result'
+								),
+							])
+						);
+						body.appendChild(
+							el('div', { class: 'tool-pre' }, [
+								document.createTextNode(
+									formatToolResult(data.result)
+								),
+							])
+						);
+						break;
+					}
+					case 'turn_end':
+						sealLiveText(container);
+						container.appendChild(el('div', { class: 'turn-marker' }, []));
+						break;
+					case 'idle':
+						break;
+					case 'result': {
+						sealLiveText(container);
+						container.appendChild(
+							el('div', { class: 'result-card' }, [
+								document.createTextNode(safeJSON(data?.data)),
+							])
+						);
+						break;
+					}
+					case 'error':
+						appendError(container, safeJSON(data));
+						break;
+					default:
+						// Unknown event: log to console for debugging
+						console.log('[unknown event]', event, data);
+				}
+				window.scrollTo(0, document.body.scrollHeight);
+			}
+
+			function sealLiveText(container) {
+				const block = container.querySelector('.text-block.live');
+				if (block) block.classList.remove('live');
+			}
+
+			function summarizeArgs(args) {
+				if (!args) return '';
+				if (typeof args !== 'object') return String(args).slice(0, 120);
+				const v =
+					args.command || args.cmd || args.path || args.file || args.url;
+				return (v ? String(v) : safeJSON(args)).slice(0, 120);
+			}
+
+			function formatToolResult(r) {
+				if (r == null) return '';
+				if (typeof r === 'string') return r;
+				if (Array.isArray(r.content)) {
+					return r.content.map((c) => c.text ?? safeJSON(c)).join('\n');
+				}
+				return safeJSON(r);
+			}
+
+			function safeJSON(x) {
+				try {
+					return JSON.stringify(x, null, 2);
+				} catch {
+					return String(x);
+				}
+			}
+
+			function appendError(container, text) {
+				container.appendChild(
+					el('div', { class: 'error-card' }, [
+						document.createTextNode(text),
+					])
+				);
+			}
+
+			function el(tag, attrs, children, after) {
+				const node = document.createElement(tag);
+				for (const [k, v] of Object.entries(attrs || {})) {
+					node.setAttribute(k, v);
+				}
+				for (const c of children || []) node.appendChild(c);
+				if (after) after(node);
+				return node;
+			}
+		</script>
+	</body>
+</html>

@@ -1,0 +1,28 @@
+{
+	"name": "flue-agent-template",
+	"private": true,
+	"type": "module",
+	"description": "Template for a Flue agent deployed to Cloudflare Workers with a Daytona sandbox.",
+	"scripts": {
+		"dev": "flue dev --target cloudflare --env .dev.vars",
+		"build": "flue build --target cloudflare",
+		"deploy": "flue build --target cloudflare && cd dist && wrangler deploy",
+		"ui": "node dev-ui.mjs",
+		"sandboxes:list": "node scripts/sandboxes.mjs list",
+		"sandboxes:clean": "node scripts/sandboxes.mjs clean"
+	},
+	"dependencies": {
+		"@daytona/sdk": "^0.164.0",
+		"@flue/connectors": "^0.3.6",
+		"@flue/sdk": "^0.3.6",
+		"agents": "^0.11.1",
+		"valibot": "^1.0.0"
+	},
+	"devDependencies": {
+		"@flue/cli": "^0.3.6",
+		"wrangler": "^4.87.0"
+	},
+	"engines": {
+		"node": ">=22"
+	}
+}

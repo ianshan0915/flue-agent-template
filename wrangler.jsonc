@@ -1,0 +1,9 @@
+{
+	// User-owned wrangler config. Flue auto-injects per-agent Durable Object
+	// bindings (for session state) and a `main` entry at build time, then
+	// writes the composed config to dist/wrangler.jsonc.
+	"$schema": "https://workers.cloudflare.com/schema/wrangler.json",
+	"name": "flue-agent-template",
+	"compatibility_date": "2026-04-01",
+	"compatibility_flags": ["nodejs_compat"]
+}
