@@ -14,8 +14,11 @@ The Worker is the HTTP entry, holds session state in a Durable Object, and orche
 ```
 .flue/agents/
   assistant.ts       Agent handler (HTTP entry, Gemini orchestration, sandbox lifecycle)
-.flue/lib/
-  skills.ts          Skill content as TypeScript strings (single source of truth)
+.flue/types.d.ts     `*.md` text-import type declaration for Wrangler's text rule
+.agents/skills/      Markdown skill files — Flue's canonical skill location
+  explore/SKILL.md
+  summarize/SKILL.md
+  plan/SKILL.md
 AGENTS.md            Top-level instructions baked into the system prompt
 wrangler.jsonc       Cloudflare Worker config (Flue auto-injects per-agent DOs)
 dev-ui.html          Minimal browser UI for manual testing (streams events live)
@@ -112,9 +115,14 @@ The dev-ui exposes both as buttons: **New conversation** (same workspace) vs **S
 
 ### Skills
 
-Skills are reusable instructions for common tasks. They're authored as Markdown with frontmatter and live in `.flue/agents/skills.ts` as TypeScript strings (single source of truth).
+Skills are reusable instructions for common tasks, authored as Markdown with frontmatter at the canonical Flue path: `.agents/skills/<name>/SKILL.md`.
 
-The agent's `seedSkills()` writes them into the sandbox at `/home/daytona/.agents/skills/<name>/SKILL.md` on first creation (Flue's runtime discovers them there automatically). Skills live at `.flue/lib/skills.ts` rather than `.flue/agents/` because Flue treats every `.ts` file under `agents/` as an agent.
+On Cloudflare + Daytona we can't mount the local filesystem into the sandbox (the way `sandbox: 'local'` does on Node), so the skill content has to ride along with the Worker. The flow:
+
+1. **Authoring** — edit Markdown in `.agents/skills/<name>/SKILL.md`
+2. **Bundling** — Wrangler's `Text` rule (in `wrangler.jsonc`) makes `.md` files importable as strings; the agent imports them at the top of `assistant.ts`
+3. **Seeding** — `seedSkills()` writes the strings to `/home/daytona/.agents/skills/<name>/SKILL.md` on first sandbox creation
+4. **Discovery** — Flue's runtime scans the sandbox cwd and includes the skills in the agent's system prompt
 
 Three skills ship with the template:
 
@@ -128,10 +136,10 @@ The agent invokes a skill via `session.skill('<name>', { args, result })`. See [
 
 #### Adding a skill
 
-1. Open `.flue/lib/skills.ts`
-2. Add a new entry: `mySkill: \`---\nname: mySkill\ndescription: ...\n---\n\nInstructions...\``
-3. Restart `pnpm dev` (existing sandboxes keep their old seeded copies — delete them with `pnpm sandboxes:clean` to re-seed)
-4. Reference it from agent code: `session.skill('mySkill', { ... })`
+1. `mkdir -p .agents/skills/<name>` and create `.agents/skills/<name>/SKILL.md` with frontmatter + body
+2. Add an `import` line near the top of `.flue/agents/assistant.ts` and add the entry to the `SKILLS` object
+3. Restart `pnpm dev` — existing sandboxes keep their old seeded copies; run `pnpm sandboxes:clean` to drop them and trigger re-seeding
+4. Reference the skill from agent code: `session.skill('<name>', { args, result })`
 
 ## Costs
 

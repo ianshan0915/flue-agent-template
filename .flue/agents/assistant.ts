@@ -1,7 +1,16 @@
 import { type FlueContext } from '@flue/sdk/client';
 import { Daytona, type Sandbox } from '@daytona/sdk';
 import { daytona } from '@flue/connectors/daytona';
-import { SKILLS } from '../lib/skills.ts';
+
+// Skill content — authored as Markdown at the canonical Flue path.
+// Wrangler's Text rule (wrangler.jsonc) bundles them into the Worker,
+// then `seedSkills()` writes them into the sandbox at runtime so the
+// agent's discovery picks them up at `<cwd>/.agents/skills/<name>/SKILL.md`.
+import explore from '../../.agents/skills/explore/SKILL.md';
+import summarize from '../../.agents/skills/summarize/SKILL.md';
+import plan from '../../.agents/skills/plan/SKILL.md';
+
+const SKILLS: Record<string, string> = { explore, summarize, plan };
 
 export const triggers = { webhook: true };
 
@@ -12,11 +21,9 @@ const SEED_MARKER = `${SANDBOX_CWD}/.agents/.seeded`;
 /**
  * Cached sandbox per agent id.
  *
- * URL agent id → one Daytona sandbox, looked up by label. Same id reuses
- * the sandbox (files persist). Different id → different sandbox.
- *
- * Daytona auto-stops after 15 min idle (no compute charge while stopped).
- * Auto-archives 1 hr after stop (cheaper disk). Re-starts on next request.
+ * Same id reuses the sandbox (files persist). Different id → different
+ * sandbox. Daytona auto-stops after 15 min idle (no compute charge),
+ * auto-archives 1 hr after stop (cheaper disk), restarts on demand.
  */
 async function getOrCreateSandbox(client: Daytona, agentId: string): Promise<Sandbox> {
 	const found = await client.list({ [AGENT_ID_LABEL]: agentId });
@@ -34,19 +41,18 @@ async function getOrCreateSandbox(client: Daytona, agentId: string): Promise<San
 }
 
 /**
- * Write skills.ts entries into the sandbox at the path Flue's runtime
- * discovers (`<cwd>/.agents/skills/<name>/SKILL.md`). Idempotent via a
- * marker file — only runs on a freshly created sandbox.
+ * Seed bundled skill markdown into the sandbox at the path Flue's runtime
+ * discovers. Idempotent via a marker file — only runs once per sandbox.
  *
- * To re-seed an existing sandbox after editing skills.ts, delete it (or
- * just delete the marker file) so the next request triggers a re-seed.
+ * To re-seed after editing a skill: delete the sandbox (or the marker)
+ * so the next request triggers seeding again.
  */
 async function seedSkills(sandbox: Sandbox): Promise<void> {
 	try {
 		await sandbox.fs.getFileDetails(SEED_MARKER);
 		return;
 	} catch {
-		// marker missing — proceed with seeding
+		// marker missing — proceed
 	}
 
 	await sandbox.process.executeCommand(`mkdir -p ${SANDBOX_CWD}/.agents/skills`);
@@ -63,10 +69,10 @@ async function seedSkills(sandbox: Sandbox): Promise<void> {
 /**
  * Assistant agent.
  *
- * URL: POST /agents/assistant/<workspace-id>
- * Body: { message: string, threadId?: string }
+ *   POST /agents/assistant/<workspace-id>
+ *   Body: { message: string, threadId?: string }
  *
- * - workspace-id keys the Daytona sandbox (files persist within an id)
+ * - workspace-id keys the Daytona sandbox (files persist)
  * - threadId keys the conversation history within that workspace
  */
 export default async function ({ init, env, payload, id }: FlueContext) {
