@@ -6,7 +6,7 @@
 	"scripts": {
 		"dev": "flue dev --target cloudflare --env .dev.vars",
 		"build": "flue build --target cloudflare",
-		"deploy": "flue build --target cloudflare && cd dist && wrangler deploy",
+		"deploy": "flue build --target cloudflare && wrangler deploy",
 		"ui": "node dev-ui.mjs",
 		"sandboxes:list": "node scripts/sandboxes.mjs list",
 		"sandboxes:clean": "node scripts/sandboxes.mjs clean"
