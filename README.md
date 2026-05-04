@@ -9,6 +9,21 @@ Browser / curl  ──HTTPS──▶  Cloudflare Worker  ──┬──▶  Day
 
 The Worker is the HTTP entry, holds session state in a Durable Object, and orchestrates calls to the model. The actual `bash` / `read` / `write` operations the agent performs run in a per-workspace Daytona sandbox.
 
+## ⚡ Built on [Flue](https://github.com/withastro/flue)
+
+This template is the fastest way to go from zero to a production-ready **Flue agent** — running on the edge, talking to an LLM, and executing real bash commands in a sandboxed environment.
+
+[Flue](https://github.com/withastro/flue) is the open-source framework that lets you define agents as composable skills, run them anywhere (Cloudflare Workers, Node, or beyond), and swap out models, sandboxes, and runtimes without rewriting your agent logic. This repo wires up the full stack for you: just clone, add your keys, and deploy.
+
+**What makes this Flue integration shine:**
+
+- **Portable agent code** — the same `assistant.ts` runs locally or on Cloudflare
+- **Skill-driven architecture** — teach your agent new behaviors by writing Markdown, not code
+- **Hot-swappable backends** — switch from Gemini to Claude, Daytona to local, or Cloudflare to Node in one line
+- **Type-safe throughout** — full TypeScript support with Flue's SDK types
+
+Want to learn more about Flue? Check out the [main repo](https://github.com/withastro/flue) and the [Flue docs](https://github.com/withastro/flue).
+
 ## Why this stack?
 
 A flue agent has three pluggable pieces. The template picks one of each so you can be running in 10 minutes and swap from there:
